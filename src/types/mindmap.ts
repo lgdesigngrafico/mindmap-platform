@@ -8,12 +8,14 @@ export type MediaRecord = Database["public"]["Tables"]["media"]["Row"];
 
 export type MindMapNodeData = {
   label: string;
+  notes?: string | null;
   isRoot?: boolean;
   isSaving?: boolean;
   isSelected?: boolean;
   mindMapId?: string;
   mediaItems?: MediaRecord[];
   onChangeLabel: (nodeId: string, label: string) => void;
+  onSaveNotes?: (nodeId: string, notes: string) => Promise<void>;
   onAttachMedia?: (
     nodeId: string,
     mindMapId: string,

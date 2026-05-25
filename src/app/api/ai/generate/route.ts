@@ -4,7 +4,7 @@ type RateLimitEntry = { count: number; resetAt: number };
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
 const SYSTEM_PROMPT =
-  "Você é um especialista em mapas mentais e estratégia. Dado o tema do usuário, gere uma estrutura hierárquica completa com 8-15 nós. Responda APENAS com JSON válido no formato: {\"nodes\": [{\"id\": \"1\", \"label\": \"Tema Central\", \"parentId\": null}, {\"id\": \"2\", \"label\": \"Subtópico\", \"parentId\": \"1\"}, ...]}. Cada nó deve ter texto curto e objetivo (max 5 palavras). Crie uma hierarquia com 2-3 níveis de profundidade.";
+  "Você é um especialista em mapas mentais e estratégia. Dado o tema do usuário, gere uma estrutura hierárquica completa com 8-15 nós. Responda APENAS com JSON válido no formato: {\"nodes\": [{\"id\": \"1\", \"label\": \"Tema Central\", \"parentId\": null, \"notes\": \"Descrição prática e acionável do que fazer neste tópico, com exemplos, métricas e instruções claras.\"}, ...]}. Regras: (1) label: texto curto e objetivo, 3-5 palavras. (2) notes: conteúdo PRÁTICO e ACIONÁVEL explicando O QUE FAZER, COMO FAZER e quais métricas/exemplos usar — escreva 50 a 150 palavras por notes. (3) Crie hierarquia com 2-3 níveis de profundidade.";
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         { role: "user", content: `Tema: ${prompt.trim()}` }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 4000
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      nodes: { id: string; label: string; parentId: string | null }[];
+      nodes: { id: string; label: string; parentId: string | null; notes?: string }[];
     };
 
     if (!Array.isArray(parsed.nodes) || parsed.nodes.length === 0) {

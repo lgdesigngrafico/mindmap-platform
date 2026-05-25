@@ -12,6 +12,7 @@ type CreateNodeInput = {
   mindMapId: string;
   parentNodeId?: string | null;
   label?: string;
+  notes?: string | null;
   position?: {
     x: number;
     y: number;
@@ -22,7 +23,8 @@ type CreateNodeInput = {
 
 type UpdateNodeInput = {
   id: string;
-  label: string;
+  label?: string;
+  notes?: string | null;
 };
 
 type UpdateNodePositionInput = {
@@ -88,6 +90,7 @@ export async function createNode(input: CreateNodeInput): Promise<MindMapNodeRec
       mind_map_id: input.mindMapId,
       parent_node_id: input.parentNodeId ?? null,
       label: input.label?.trim() || "Novo nó",
+      notes: input.notes ?? null,
       pos_x: input.position?.x ?? 0,
       pos_y: input.position?.y ?? 0,
       sort_order: input.sortOrder ?? 0
@@ -122,12 +125,14 @@ export async function updateNode(input: UpdateNodeInput): Promise<MindMapNodeRec
   const user = await requireUser();
   const ownedNode = await getNodeOwnership(input.id, user.id);
   const supabase = (await createClient()) as any;
+
+  const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.label !== undefined) updatePayload.label = input.label.trim() || "Novo nó";
+  if (input.notes !== undefined) updatePayload.notes = input.notes;
+
   const { data, error } = await supabase
     .from("nodes")
-    .update({
-      label: input.label.trim() || "Novo nó",
-      updated_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq("id", input.id)
     .eq("mind_map_id", ownedNode.mind_map_id)
     .select("id, mind_map_id, parent_node_id, label, notes, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")

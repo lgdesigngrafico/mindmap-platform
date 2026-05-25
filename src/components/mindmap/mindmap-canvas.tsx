@@ -68,6 +68,7 @@ function mapNodeRecordToFlowNode(
     },
     data: {
       label: node.label,
+      notes: node.notes,
       isRoot: node.id === rootNodeId,
       onChangeLabel
     }
@@ -153,6 +154,17 @@ export function MindMapCanvas({
     });
   }, []);
 
+  const handleSaveNotes = useCallback(async (nodeId: string, notes: string): Promise<void> => {
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, notes } }
+          : node
+      )
+    );
+    await updateNodeAction({ id: nodeId, notes });
+  }, []);
+
   const [nodes, setNodes] = useState<MindMapNode[]>(() =>
     initialNodes.map((node) => mapNodeRecordToFlowNode(node, rootNodeId, handleChangeLabel))
   );
@@ -204,7 +216,7 @@ export function MindMapCanvas({
         }
 
         const data = (await res.json()) as {
-          nodes: { id: string; label: string; parentId: string | null }[];
+          nodes: { id: string; label: string; parentId: string | null; notes?: string }[];
         };
 
         if (!Array.isArray(data.nodes) || data.nodes.length === 0) {
@@ -267,6 +279,7 @@ export function MindMapCanvas({
             mindMapId,
             parentNodeId: realParentId,
             label: aiNode.label,
+            notes: aiNode.notes ?? null,
             position: { x: pos.x, y: pos.y },
             sortOrder: i + 1,
             setAsRoot: isRoot
@@ -329,7 +342,7 @@ export function MindMapCanvas({
         return;
       }
 
-      const data = (await res.json()) as { subtopics: string[] };
+      const data = (await res.json()) as { subtopics: { label: string; notes: string }[] };
       if (!Array.isArray(data.subtopics) || data.subtopics.length === 0) return;
 
       const positions = computeChildPositions(
@@ -343,7 +356,8 @@ export function MindMapCanvas({
         const created = await createNodeAction({
           mindMapId,
           parentNodeId: nodeId,
-          label: data.subtopics[i],
+          label: data.subtopics[i].label,
+          notes: data.subtopics[i].notes ?? null,
           position: positions[i],
           sortOrder: nodes.length + i + 1
         });
@@ -381,12 +395,13 @@ export function MindMapCanvas({
           ...node.data,
           mindMapId,
           mediaItems: mediaByNodeId[node.id] ?? [],
+          onSaveNotes: handleSaveNotes as MindMapNodeData["onSaveNotes"],
           onAttachMedia: handleAttachMedia as MindMapNodeData["onAttachMedia"],
           onDeleteMedia: handleDeleteMedia as MindMapNodeData["onDeleteMedia"],
           onExpandNode: handleExpandNode as MindMapNodeData["onExpandNode"]
         }
       })),
-    [nodes, mediaByNodeId, mindMapId, handleAttachMedia, handleDeleteMedia, handleExpandNode]
+    [nodes, mediaByNodeId, mindMapId, handleSaveNotes, handleAttachMedia, handleDeleteMedia, handleExpandNode]
   );
 
   const nextNodeSortOrder = useMemo(() => nodes.length + 1, [nodes.length]);

@@ -6,6 +6,7 @@ import { Handle, Position } from "@xyflow/react";
 import type { MindMapNodeProps, MediaRecord } from "@/types/mindmap";
 import { MediaUpload } from "@/components/media/media-upload";
 import { MediaPreviewModal } from "@/components/media/media-preview-modal";
+import { NodeDetailModal } from "@/components/mindmap/node-detail-modal";
 import { getSignedUrl } from "@/lib/storage/media";
 
 function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
@@ -15,6 +16,7 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const [previewMedia, setPreviewMedia] = useState<MediaRecord | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const mediaItems = data.mediaItems ?? [];
 
@@ -50,6 +52,8 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
     }
   }
 
+  const notesPreview = data.notes?.trim() ?? "";
+
   return (
     <div
       className={`mindmap-node${selected ? " mindmap-node--selected" : ""}${data.isRoot ? " mindmap-node--root" : ""}`}
@@ -79,6 +83,12 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
         </button>
       )}
 
+      {notesPreview && (
+        <p className="mindmap-node__notes-preview">
+          {notesPreview}
+        </p>
+      )}
+
       {mediaItems.length > 0 && (
         <div
           className="mindmap-node__media-strip"
@@ -95,6 +105,14 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
       )}
 
       <div className="mindmap-node__actions" onMouseDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="mindmap-node__detail-btn"
+          onClick={(e) => { e.stopPropagation(); setIsDetailOpen(true); }}
+          title="Ver / editar detalhes"
+        >
+          ✏
+        </button>
         {data.onExpandNode && (
           <button
             type="button"
@@ -139,6 +157,21 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
           onDelete={async () => {
             await handleDeleteMedia(previewMedia);
             setPreviewMedia(null);
+          }}
+        />,
+        document.body
+      )}
+
+      {mounted && isDetailOpen && createPortal(
+        <NodeDetailModal
+          nodeId={id}
+          label={data.label}
+          notes={data.notes}
+          onClose={() => setIsDetailOpen(false)}
+          onSave={async (nodeId, notes) => {
+            if (data.onSaveNotes) {
+              await data.onSaveNotes(nodeId, notes);
+            }
           }}
         />,
         document.body
