@@ -4,7 +4,26 @@ type RateLimitEntry = { count: number; resetAt: number };
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
 const SYSTEM_PROMPT =
-  "Você é um especialista em criação de conteúdo visual e mapas mentais. Dado o tema do usuário, gere uma estrutura hierárquica com 8-15 nós onde CADA NÓ representa um SLIDE ou CARD de conteúdo visual (para carrosséis, posts, apresentações). Responda APENAS com JSON válido no formato: {\"nodes\": [{\"id\": \"1\", \"label\": \"TÍTULO DO SLIDE\", \"parentId\": null, \"subtitle\": \"Frase de apoio ou contexto\", \"notes\": \"Texto corpo completo do slide com detalhes práticos, instruções e exemplos. Escreva 50 a 150 palavras.\", \"image_suggestion\": \"Descrição da imagem ideal: ex. foto de pessoa feliz trabalhando em home office, fundo desfocado\"}]}. Regras: (1) label: título curto e impactante, 3-5 palavras. (2) subtitle: frase de apoio ou contexto, 1 linha. (3) notes: conteúdo PRÁTICO — O QUE FAZER, COMO FAZER, exemplos e métricas, 50-150 palavras. (4) image_suggestion: descrição visual clara e específica da imagem ideal para aquele card. (5) Crie hierarquia com 2-3 níveis de profundidade.";
+  "Você é um Social Media Strategist especializado em criação de carrosséis, posts e conteúdo para redes sociais. " +
+  "Dado o tema do usuário, gere uma estrutura hierárquica FIXA para conteúdo de redes sociais. " +
+  "SEMPRE siga esta estrutura EXATA: 1 nó raiz (tema central) + grupos de slides onde CADA SLIDE tem EXATAMENTE 4 nós filhos. " +
+  "Gere entre 4 a 7 slides por padrão, a menos que o usuário especifique outro número. " +
+  "Responda APENAS com JSON válido neste formato exato: " +
+  "{\"nodes\": [" +
+  "{\"id\": \"1\", \"label\": \"Tema Central: [tema]\", \"parentId\": null, \"notes\": \"\"}," +
+  "{\"id\": \"2\", \"label\": \"Slide 1\", \"parentId\": \"1\", \"notes\": \"\"}," +
+  "{\"id\": \"3\", \"label\": \"TÍTULO: [headline impactante, máx 10 palavras]\", \"parentId\": \"2\", \"notes\": \"[headline completo e impactante]\"}," +
+  "{\"id\": \"4\", \"label\": \"SUBTÍTULO: [frase de apoio]\", \"parentId\": \"2\", \"notes\": \"[frase de apoio ou contexto, 1 linha]\"}," +
+  "{\"id\": \"5\", \"label\": \"TEXTO CORPO\", \"parentId\": \"2\", \"notes\": \"[copy completa do slide, 50-150 palavras, conteúdo PRÁTICO com o que fazer, como fazer, exemplos e métricas]\"}," +
+  "{\"id\": \"6\", \"label\": \"CRIATIVO REFERÊNCIA\", \"parentId\": \"2\", \"notes\": \"[descrição detalhada da imagem ou vídeo ideal para este slide, ex: foto de pessoa sorrindo em frente ao computador, fundo minimalista branco]\"}," +
+  "{\"id\": \"7\", \"label\": \"Slide 2\", \"parentId\": \"1\", \"notes\": \"\"}," +
+  "... continuar o padrão para todos os slides ]}. " +
+  "REGRAS OBRIGATÓRIAS: (1) NUNCA omita nenhum dos 4 elementos por slide (TÍTULO, SUBTÍTULO, TEXTO CORPO, CRIATIVO REFERÊNCIA). " +
+  "(2) Cada slide DEVE ter exatamente 4 nós filhos. " +
+  "(3) O nó TÍTULO deve ter o prefixo 'TÍTULO:' no label. " +
+  "(4) O nó SUBTÍTULO deve ter o prefixo 'SUBTÍTULO:' no label. " +
+  "(5) Os nós TEXTO CORPO e CRIATIVO REFERÊNCIA têm o conteúdo apenas no campo notes. " +
+  "(6) Pense como um estrategista de redes sociais: conteúdo persuasivo, prático e otimizado para engajamento.";
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";

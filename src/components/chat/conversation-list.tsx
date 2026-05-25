@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { deleteConversationAction } from "@/lib/actions/chat";
+import { useState } from "react";
+import { deleteConversationAction, renameConversationAction } from "@/lib/actions/chat";
 
 type Conversation = {
   id: string;
@@ -26,6 +27,30 @@ function formatDate(iso: string) {
 
 export function ConversationList({ conversations, onNewChat }: ConversationListProps) {
   const pathname = usePathname();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  function startEdit(id: string, currentTitle: string) {
+    setEditingId(id);
+    setEditingTitle(currentTitle);
+  }
+
+  async function confirmEdit(id: string) {
+    const trimmed = editingTitle.trim();
+    if (trimmed) {
+      await renameConversationAction(id, trimmed);
+    }
+    setEditingId(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent, id: string) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void confirmEdit(id);
+    } else if (e.key === "Escape") {
+      setEditingId(null);
+    }
+  }
 
   return (
     <aside className="chat-sidebar">
@@ -41,23 +66,46 @@ export function ConversationList({ conversations, onNewChat }: ConversationListP
         )}
         {conversations.map((conv) => {
           const isActive = pathname === `/chat/${conv.id}`;
+          const isEditing = editingId === conv.id;
           return (
             <div key={conv.id} className={`chat-sidebar__item${isActive ? " chat-sidebar__item--active" : ""}`}>
-              <Link href={`/chat/${conv.id}`} className="chat-sidebar__link">
-                <span className="chat-sidebar__conv-title">{conv.title}</span>
-                <span className="chat-sidebar__conv-date">{formatDate(conv.updated_at)}</span>
-              </Link>
-              <form action={deleteConversationAction} className="chat-sidebar__delete">
-                <input type="hidden" name="id" value={conv.id} />
+              {isEditing ? (
+                <input
+                  className="chat-sidebar__rename-input"
+                  value={editingTitle}
+                  autoFocus
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => void confirmEdit(conv.id)}
+                  onKeyDown={(e) => handleKeyDown(e, conv.id)}
+                />
+              ) : (
+                <Link href={`/chat/${conv.id}`} className="chat-sidebar__link">
+                  <span className="chat-sidebar__conv-title">{conv.title}</span>
+                  <span className="chat-sidebar__conv-date">{formatDate(conv.updated_at)}</span>
+                </Link>
+              )}
+              <div className="chat-sidebar__actions">
                 <button
-                  type="submit"
-                  className="chat-sidebar__delete-btn"
-                  title="Remover conversa"
-                  aria-label="Remover conversa"
+                  type="button"
+                  className="chat-sidebar__rename-btn"
+                  title="Renomear conversa"
+                  aria-label="Renomear conversa"
+                  onClick={() => startEdit(conv.id, conv.title)}
                 >
-                  ×
+                  ✎
                 </button>
-              </form>
+                <form action={deleteConversationAction} className="chat-sidebar__delete">
+                  <input type="hidden" name="id" value={conv.id} />
+                  <button
+                    type="submit"
+                    className="chat-sidebar__delete-btn"
+                    title="Remover conversa"
+                    aria-label="Remover conversa"
+                  >
+                    ×
+                  </button>
+                </form>
+              </div>
             </div>
           );
         })}

@@ -46,6 +46,13 @@ export async function updateConversationTitleAction(
   revalidatePath("/chat");
 }
 
+export async function renameConversationAction(
+  conversationId: string,
+  newTitle: string
+): Promise<void> {
+  return updateConversationTitleAction(conversationId, newTitle);
+}
+
 export async function deleteConversationAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   const id = formData.get("id") as string;

@@ -21,7 +21,10 @@ export function AppShell({ email, children }: AppShellProps) {
           <Link href="/clients">Clientes</Link>
         </nav>
         <div className="shell__profile">
-          <p>{email}</p>
+          <Link href="/profile" className="shell__profile-link">
+            <p className="shell__profile-email">{email}</p>
+            <span className="shell__profile-edit">Meu Perfil</span>
+          </Link>
           <SignOutButton />
         </div>
       </aside>

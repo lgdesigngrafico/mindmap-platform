@@ -396,36 +396,62 @@ export function MindMapCanvas({
         return;
       }
 
-      const data = (await res.json()) as { subtopics: { label: string; subtitle?: string; notes: string; image_suggestion?: string }[] };
-      if (!Array.isArray(data.subtopics) || data.subtopics.length === 0) return;
+      const data = (await res.json()) as {
+        nodes: { id: string; label: string; parentId: string | null; notes?: string }[];
+      };
+      if (!Array.isArray(data.nodes) || data.nodes.length === 0) return;
+
+      // Topological sort: roots (parentId null) first, then children
+      const aiNodes = data.nodes;
+      const sorted: typeof aiNodes = [];
+      const remaining = [...aiNodes];
+      const roots = remaining.filter((n) => n.parentId === null);
+      sorted.push(...roots);
+      for (const r of roots) remaining.splice(remaining.indexOf(r), 1);
+      let safety = aiNodes.length * 2;
+      while (remaining.length > 0 && safety-- > 0) {
+        const processable = remaining.filter((n) => sorted.some((s) => s.id === n.parentId));
+        if (processable.length === 0) break;
+        for (const node of processable) {
+          sorted.push(node);
+          remaining.splice(remaining.indexOf(node), 1);
+        }
+      }
+      sorted.push(...remaining);
 
       const positions = computeChildPositions(
         parentNode.position.x,
         parentNode.position.y,
-        data.subtopics.length
+        roots.length || sorted.length
       );
 
+      const idMap = new Map<string, string>(); // aiId -> realDbId
       const createdNodes: MindMapNodeRecord[] = [];
-      for (let i = 0; i < data.subtopics.length; i++) {
+      const createdEdges: MindMapEdgeRecord[] = [];
+
+      for (let i = 0; i < sorted.length; i++) {
+        const aiNode = sorted[i];
+        // nodes with parentId null attach directly to the expanded node
+        const realParentId = aiNode.parentId ? (idMap.get(aiNode.parentId) ?? null) : null;
+        const attachTo = realParentId ?? nodeId;
+        const posIdx = aiNode.parentId === null ? sorted.filter((n, j) => n.parentId === null && j <= i).length - 1 : i;
+        const pos = positions[posIdx] ?? { x: parentNode.position.x + (i + 1) * 250, y: parentNode.position.y + (i + 1) * 80 };
+
         const created = await createNodeAction({
           mindMapId,
-          parentNodeId: nodeId,
-          label: data.subtopics[i].label,
-          subtitle: data.subtopics[i].subtitle ?? null,
-          notes: data.subtopics[i].notes ?? null,
-          image_suggestion: data.subtopics[i].image_suggestion ?? null,
-          position: positions[i],
+          parentNodeId: attachTo,
+          label: aiNode.label,
+          notes: aiNode.notes ?? null,
+          position: pos,
           sortOrder: nodes.length + i + 1
         });
+        idMap.set(aiNode.id, created.id);
         createdNodes.push(created);
-      }
 
-      const createdEdges: MindMapEdgeRecord[] = [];
-      for (const child of createdNodes) {
         const edge = await createEdgeAction({
           mindMapId,
-          sourceNodeId: nodeId,
-          targetNodeId: child.id
+          sourceNodeId: attachTo,
+          targetNodeId: created.id
         });
         createdEdges.push(edge);
       }

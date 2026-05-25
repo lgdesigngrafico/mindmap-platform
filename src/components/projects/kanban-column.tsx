@@ -13,6 +13,7 @@ type Task = {
   priority: "low" | "medium" | "high";
   due_date: string | null;
   client_id: string | null;
+  mind_map_id: string | null;
 };
 
 type ClientOption = { id: string; name: string; color: string };

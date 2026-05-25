@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createTaskAction, updateTaskAction } from "@/lib/actions/tasks";
 
 type Task = {
@@ -11,6 +11,7 @@ type Task = {
   priority: "low" | "medium" | "high";
   due_date: string | null;
   client_id: string | null;
+  mind_map_id: string | null;
 };
 
 type ClientOption = { id: string; name: string };
@@ -23,6 +24,49 @@ type TaskModalProps = {
   onSaved: (task: Task & { id: string }) => void;
 };
 
+type MapNode = {
+  id: string;
+  label: string;
+  notes: string | null;
+  parent_node_id: string | null;
+  sort_order: number;
+};
+
+function buildMapContent(nodes: MapNode[]): React.ReactNode {
+  const rootNode = nodes.find((n) => !n.parent_node_id);
+  if (!rootNode) return null;
+
+  const slideNodes = nodes.filter((n) => n.parent_node_id === rootNode.id);
+
+  return (
+    <div className="task-modal__map-content">
+      <h4 className="task-modal__map-root">{rootNode.label}</h4>
+      {slideNodes.map((slide) => {
+        const children = nodes.filter((n) => n.parent_node_id === slide.id);
+        return (
+          <div key={slide.id} className="task-modal__map-slide">
+            <h5 className="task-modal__map-slide-title">{slide.label}</h5>
+            {children.length > 0 ? (
+              <div className="task-modal__map-slide-children">
+                {children.map((child) => (
+                  <div key={child.id} className="task-modal__map-node">
+                    <span className="task-modal__map-node-label">{child.label}</span>
+                    {child.notes && (
+                      <p className="task-modal__map-node-notes">{child.notes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              slide.notes && <p className="task-modal__map-node-notes">{slide.notes}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TaskModal({ task, defaultStatus = "todo", clients, onClose, onSaved }: TaskModalProps) {
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
@@ -32,6 +76,21 @@ export function TaskModal({ task, defaultStatus = "todo", clients, onClose, onSa
   const [clientId, setClientId] = useState(task?.client_id ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [mapNodes, setMapNodes] = useState<MapNode[] | null>(null);
+  const [mapLoading, setMapLoading] = useState(false);
+
+  useEffect(() => {
+    if (!task?.mind_map_id) return;
+    setMapLoading(true);
+    fetch(`/api/maps/${task.mind_map_id}/nodes`)
+      .then((r) => r.json())
+      .then((data: { nodes?: MapNode[] }) => {
+        if (Array.isArray(data.nodes)) setMapNodes(data.nodes);
+      })
+      .catch(() => null)
+      .finally(() => setMapLoading(false));
+  }, [task?.mind_map_id]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +118,7 @@ export function TaskModal({ task, defaultStatus = "todo", clients, onClose, onSa
           due_date: dueDate,
           client_id: clientId
         });
-        onSaved({ id, title, description: description || null, status, priority, due_date: dueDate || null, client_id: clientId || null });
+        onSaved({ id, title, description: description || null, status, priority, due_date: dueDate || null, client_id: clientId || null, mind_map_id: null });
       }
       onClose();
     } catch (err) {
@@ -71,7 +130,7 @@ export function TaskModal({ task, defaultStatus = "todo", clients, onClose, onSa
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal__header">
           <h2>{task ? "Editar Tarefa" : "Nova Tarefa"}</h2>
           <button type="button" className="modal__close" onClick={onClose}>×</button>
@@ -119,6 +178,28 @@ export function TaskModal({ task, defaultStatus = "todo", clients, onClose, onSa
               </select>
             </div>
           </div>
+
+          {task?.mind_map_id && (
+            <div className="task-modal__map-section">
+              <div className="task-modal__map-header">
+                <span className="task-modal__map-label">Conteúdo do Mapa Mental</span>
+                {task.mind_map_id && (
+                  <a
+                    href={`/maps/${task.mind_map_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="task-modal__map-link"
+                  >
+                    Abrir mapa ↗
+                  </a>
+                )}
+              </div>
+              {mapLoading && <p className="task-modal__map-loading">Carregando conteúdo do mapa...</p>}
+              {!mapLoading && mapNodes && buildMapContent(mapNodes)}
+              {!mapLoading && !mapNodes && <p className="task-modal__map-empty">Nenhum conteúdo disponível.</p>}
+            </div>
+          )}
+
           <div className="modal__footer">
             <button type="button" className="button button--secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="button button--primary" disabled={saving}>

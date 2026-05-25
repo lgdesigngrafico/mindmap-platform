@@ -119,20 +119,52 @@ export async function exportMapToTasksAction(
   clientId?: string
 ): Promise<void> {
   const user = await requireUser();
+  const supabase = (await createClient()) as any;
+
+  // Get mind map title
+  const { data: mapData } = await supabase
+    .from("mind_maps")
+    .select("title")
+    .eq("id", mindMapId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const mapTitle = (mapData?.title as string | null) ?? "Mapa sem título";
+
   const nodes = await getNodesByMindMapId(mindMapId);
 
-  await Promise.all(
-    nodes.map((node: NodeRow) =>
-      createTaskAction({
-        title: node.label || "Nó sem título",
-        description: node.notes ?? undefined,
-        status: "todo",
-        priority: "medium",
-        mind_map_id: mindMapId,
-        client_id: clientId
-      })
-    )
-  );
+  // Build organized description from nodes structure
+  // Identify slide parent nodes (children of root) and their 4 sub-nodes
+  const rootNode = nodes.find((n: NodeRow) => !n.parent_node_id);
+  const slideNodes = rootNode ? nodes.filter((n: NodeRow) => n.parent_node_id === rootNode.id) : [];
+
+  let description = `## ${mapTitle}\n\n`;
+
+  if (slideNodes.length > 0) {
+    for (const slide of slideNodes) {
+      description += `### ${slide.label}\n\n`;
+      const children = nodes.filter((n: NodeRow) => n.parent_node_id === slide.id);
+      for (const child of children) {
+        description += `**${child.label}**\n${child.notes ?? ""}\n\n`;
+      }
+    }
+  } else {
+    // Fallback: list all nodes
+    for (const node of nodes) {
+      if (node.label) {
+        description += `**${node.label}**\n${node.notes ?? ""}\n\n`;
+      }
+    }
+  }
+
+  await createTaskAction({
+    title: mapTitle,
+    description: description.trim(),
+    status: "todo",
+    priority: "medium",
+    mind_map_id: mindMapId,
+    client_id: clientId
+  });
 
   revalidatePath("/projects");
 }

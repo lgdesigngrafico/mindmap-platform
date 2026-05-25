@@ -8,6 +8,7 @@ type Task = {
   priority: "low" | "medium" | "high";
   due_date: string | null;
   client_id: string | null;
+  mind_map_id: string | null;
 };
 
 type ClientOption = { id: string; name: string; color: string };
@@ -68,6 +69,9 @@ export function TaskCard({ task, clients, onEdit, onDelete }: TaskCardProps) {
       <div className="task-card__footer">
         {task.due_date && (
           <span className="task-card__date">{formatDate(task.due_date)}</span>
+        )}
+        {task.mind_map_id && (
+          <span className="task-card__map-badge" title="Tem mapa mental associado">🗺</span>
         )}
         {client && (
           <span className="task-card__client" style={{ borderColor: client.color, color: client.color }}>
