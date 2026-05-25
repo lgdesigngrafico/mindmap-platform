@@ -5,13 +5,15 @@ type NodeToolbarProps = {
   onDeleteSelection: () => void;
   isDeletingDisabled: boolean;
   onGenerateWithAI: () => void;
+  onExportToTasks?: () => void;
 };
 
 export function NodeToolbar({
   onCreateNode,
   onDeleteSelection,
   isDeletingDisabled,
-  onGenerateWithAI
+  onGenerateWithAI,
+  onExportToTasks
 }: NodeToolbarProps) {
   return (
     <div className="mindmap-toolbar">
@@ -29,6 +31,11 @@ export function NodeToolbar({
       >
         Deletar seleção
       </button>
+      {onExportToTasks && (
+        <button type="button" className="button button--secondary" onClick={onExportToTasks}>
+          Enviar para Gestão
+        </button>
+      )}
       <div className="mindmap-toolbar__hint">
         <span>Duplo clique edita</span>
         <span>Delete remove</span>

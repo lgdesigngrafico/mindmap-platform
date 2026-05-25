@@ -16,6 +16,9 @@ export function AppShell({ email, children }: AppShellProps) {
         </div>
         <nav className="shell__nav">
           <Link href="/maps">Meus mapas</Link>
+          <Link href="/chat">Chat IA</Link>
+          <Link href="/projects">Gestão</Link>
+          <Link href="/clients">Clientes</Link>
         </nav>
         <div className="shell__profile">
           <p>{email}</p>

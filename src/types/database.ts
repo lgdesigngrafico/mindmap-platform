@@ -31,6 +31,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
+          client_id: string | null;
           title: string;
           description: string | null;
           root_node_id: string | null;
@@ -40,6 +41,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
+          client_id?: string | null;
           title: string;
           description?: string | null;
           root_node_id?: string | null;
@@ -49,6 +51,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
+          client_id?: string | null;
           title?: string;
           description?: string | null;
           root_node_id?: string | null;
@@ -182,6 +185,135 @@ export type Database = {
           height?: number | null;
           duration_seconds?: number | null;
           preview_image_path?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      clients: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          company: string | null;
+          email: string | null;
+          phone: string | null;
+          notes: string | null;
+          color: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          company?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          notes?: string | null;
+          color?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          company?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          notes?: string | null;
+          color?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tasks: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string | null;
+          mind_map_id: string | null;
+          title: string;
+          description: string | null;
+          status: "todo" | "in_progress" | "done";
+          priority: "low" | "medium" | "high";
+          due_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id?: string | null;
+          mind_map_id?: string | null;
+          title: string;
+          description?: string | null;
+          status?: "todo" | "in_progress" | "done";
+          priority?: "low" | "medium" | "high";
+          due_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          client_id?: string | null;
+          mind_map_id?: string | null;
+          title?: string;
+          description?: string | null;
+          status?: "todo" | "in_progress" | "done";
+          priority?: "low" | "medium" | "high";
+          due_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      chat_conversations: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      chat_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          role: "user" | "assistant";
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          role: "user" | "assistant";
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          role?: "user" | "assistant";
+          content?: string;
           created_at?: string;
         };
         Relationships: [];

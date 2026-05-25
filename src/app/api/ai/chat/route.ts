@@ -1,0 +1,78 @@
+import Groq from "groq-sdk";
+
+export const runtime = "nodejs";
+
+const SYSTEM_PROMPT =
+  "Você é um assistente especializado em mapas mentais, estratégia, organização de ideias e produtividade. " +
+  "Responda de forma clara, objetiva e em português do Brasil. " +
+  "Quando fizer sentido, estruture as respostas com tópicos ou listas para facilitar a criação de mapas mentais.";
+
+export async function POST(req: Request) {
+  let body: { conversationId: string; messages: { role: string; content: string }[] };
+
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Requisição inválida." }, { status: 400 });
+  }
+
+  const { messages } = body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return Response.json({ error: "Mensagens inválidas." }, { status: 400 });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return Response.json({ error: "GROQ_API_KEY não configurada." }, { status: 500 });
+  }
+
+  try {
+    const groq = new Groq({ apiKey });
+
+    const stream = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+      ],
+      temperature: 0.7,
+      max_tokens: 2048,
+      stream: true
+    });
+
+    const encoder = new TextEncoder();
+
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content ?? "";
+            if (token) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+            }
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch (err) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: err instanceof Error ? err.message : "Erro no stream." })}\n\n`
+            )
+          );
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive"
+      }
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao chamar a IA.";
+    return Response.json({ error: message }, { status: 500 });
+  }
+}

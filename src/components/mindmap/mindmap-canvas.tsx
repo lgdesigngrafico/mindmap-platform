@@ -50,6 +50,20 @@ type MindMapCanvasProps = {
   initialMediaByNodeId: Record<string, MediaRecord[]>;
 };
 
+async function exportMapToTasks(mindMapId: string) {
+  const res = await fetch("/api/maps/export-to-tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mindMapId })
+  });
+  if (res.ok) {
+    window.location.href = "/projects";
+  } else {
+    const data = await res.json() as { error?: string };
+    window.alert(data.error ?? "Erro ao exportar tarefas.");
+  }
+}
+
 const nodeTypes = {
   mindmapNode: CustomNode
 };
@@ -563,6 +577,7 @@ export function MindMapCanvas({
           onDeleteSelection={deleteSelection}
           isDeletingDisabled={!selectedNodeIds.length && !selectedEdgeIds.length}
           onGenerateWithAI={() => { setAiError(null); setIsAiModalOpen(true); }}
+          onExportToTasks={() => exportMapToTasks(mindMapId)}
         />
       </div>
       <div className="mindmap-editor__canvas">
