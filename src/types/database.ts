@@ -66,7 +66,9 @@ export type Database = {
           mind_map_id: string;
           parent_node_id: string | null;
           label: string;
+          subtitle: string | null;
           notes: string | null;
+          image_suggestion: string | null;
           pos_x: number;
           pos_y: number;
           color: string | null;
@@ -81,7 +83,9 @@ export type Database = {
           mind_map_id: string;
           parent_node_id?: string | null;
           label?: string;
+          subtitle?: string | null;
           notes?: string | null;
+          image_suggestion?: string | null;
           pos_x?: number;
           pos_y?: number;
           color?: string | null;
@@ -96,7 +100,9 @@ export type Database = {
           mind_map_id?: string;
           parent_node_id?: string | null;
           label?: string;
+          subtitle?: string | null;
           notes?: string | null;
+          image_suggestion?: string | null;
           pos_x?: number;
           pos_y?: number;
           color?: string | null;

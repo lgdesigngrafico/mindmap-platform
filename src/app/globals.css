@@ -1052,6 +1052,20 @@ body > div:first-child {
 
 /* ── Node: notes preview ─────────────────────────────────────────────────── */
 
+.mindmap-node__subtitle {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.7);
+  line-height: 1.3;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
 .mindmap-node__notes-preview {
   margin: 4px 0 0;
   font-size: 0.72rem;
@@ -1158,6 +1172,27 @@ body > div:first-child {
 .node-detail-modal__label {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.node-detail-modal__input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text);
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.node-detail-modal__input:focus {
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.node-detail-modal__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .node-detail-modal__textarea {
@@ -2049,6 +2084,52 @@ body > div:first-child {
   padding: 8px 14px;
   font-size: 0.85rem;
   border-radius: 10px;
+}
+
+/* ── Client calendar ─────────────────────────────────────────────────────── */
+
+.client-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar__grid--mini .calendar__cell {
+  min-height: 44px;
+  padding: 4px;
+  align-items: center;
+  position: relative;
+}
+
+.calendar__cell--selected {
+  border: 1px solid rgba(56, 189, 248, 0.55) !important;
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+.calendar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.client-calendar__day-tasks {
+  background: rgba(6, 15, 28, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.client-calendar__day-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--primary);
 }
 
 @media (max-width: 960px) {

@@ -12,7 +12,9 @@ type CreateNodeInput = {
   mindMapId: string;
   parentNodeId?: string | null;
   label?: string;
+  subtitle?: string | null;
   notes?: string | null;
+  image_suggestion?: string | null;
   position?: {
     x: number;
     y: number;
@@ -24,7 +26,9 @@ type CreateNodeInput = {
 type UpdateNodeInput = {
   id: string;
   label?: string;
+  subtitle?: string | null;
   notes?: string | null;
+  image_suggestion?: string | null;
 };
 
 type UpdateNodePositionInput = {
@@ -90,12 +94,14 @@ export async function createNode(input: CreateNodeInput): Promise<MindMapNodeRec
       mind_map_id: input.mindMapId,
       parent_node_id: input.parentNodeId ?? null,
       label: input.label?.trim() || "Novo nó",
+      subtitle: input.subtitle ?? null,
       notes: input.notes ?? null,
+      image_suggestion: input.image_suggestion ?? null,
       pos_x: input.position?.x ?? 0,
       pos_y: input.position?.y ?? 0,
       sort_order: input.sortOrder ?? 0
     })
-    .select("id, mind_map_id, parent_node_id, label, notes, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
+    .select("id, mind_map_id, parent_node_id, label, subtitle, notes, image_suggestion, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
     .single();
 
   if (error || !data) {
@@ -128,14 +134,16 @@ export async function updateNode(input: UpdateNodeInput): Promise<MindMapNodeRec
 
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.label !== undefined) updatePayload.label = input.label.trim() || "Novo nó";
+  if (input.subtitle !== undefined) updatePayload.subtitle = input.subtitle;
   if (input.notes !== undefined) updatePayload.notes = input.notes;
+  if (input.image_suggestion !== undefined) updatePayload.image_suggestion = input.image_suggestion;
 
   const { data, error } = await supabase
     .from("nodes")
     .update(updatePayload)
     .eq("id", input.id)
     .eq("mind_map_id", ownedNode.mind_map_id)
-    .select("id, mind_map_id, parent_node_id, label, notes, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
+    .select("id, mind_map_id, parent_node_id, label, subtitle, notes, image_suggestion, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
     .single();
 
   if (error || !data) {
@@ -158,7 +166,7 @@ export async function updateNodePosition(input: UpdateNodePositionInput): Promis
     })
     .eq("id", input.id)
     .eq("mind_map_id", ownedNode.mind_map_id)
-    .select("id, mind_map_id, parent_node_id, label, notes, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
+    .select("id, mind_map_id, parent_node_id, label, subtitle, notes, image_suggestion, pos_x, pos_y, color, width, height, sort_order, created_at, updated_at")
     .single();
 
   if (error || !data) {

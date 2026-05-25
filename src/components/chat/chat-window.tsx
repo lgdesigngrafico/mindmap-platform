@@ -129,13 +129,13 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
       }
 
       const data = await res.json() as {
-        nodes: { id: string; label: string; parentId: string | null; notes?: string }[];
+        nodes: { id: string; label: string; parentId: string | null; subtitle?: string; notes?: string; image_suggestion?: string }[];
       };
 
       const supaRes = await fetch("/api/maps/create-from-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodes: data.nodes, title: content.slice(0, 60) })
+        body: JSON.stringify({ nodes: data.nodes, title: content.slice(0, 60), prompt: content })
       });
 
       if (supaRes.ok) {

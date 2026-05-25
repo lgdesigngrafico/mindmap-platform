@@ -8,11 +8,13 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = await req.json() as {
-      nodes: { id: string; label: string; parentId: string | null; notes?: string }[];
+      nodes: { id: string; label: string; parentId: string | null; subtitle?: string; notes?: string; image_suggestion?: string }[];
       title?: string;
+      prompt?: string;
+      client_id?: string | null;
     };
 
-    const { nodes: aiNodes, title } = body;
+    const { nodes: aiNodes, title, prompt, client_id: bodyClientId } = body;
     if (!Array.isArray(aiNodes) || aiNodes.length === 0) {
       return Response.json({ error: "Nós inválidos." }, { status: 400 });
     }
@@ -20,9 +22,26 @@ export async function POST(req: Request) {
     const supabase = (await createClient()) as any;
     const mapTitle = title?.trim().slice(0, 80) || "Mapa do Chat IA";
 
+    // Detect client from prompt if not already provided
+    let resolvedClientId: string | null = bodyClientId ?? null;
+    if (!resolvedClientId && prompt) {
+      const { data: clients } = await supabase
+        .from("clients")
+        .select("id, name")
+        .eq("user_id", user.id);
+
+      if (clients && clients.length > 0) {
+        const lowerPrompt = prompt.toLowerCase();
+        const matched = (clients as { id: string; name: string }[]).find((c) =>
+          lowerPrompt.includes(c.name.toLowerCase())
+        );
+        resolvedClientId = matched?.id ?? null;
+      }
+    }
+
     const { data: mapData, error: mapError } = await supabase
       .from("mind_maps")
-      .insert({ user_id: user.id, title: mapTitle })
+      .insert({ user_id: user.id, title: mapTitle, client_id: resolvedClientId })
       .select("id")
       .single();
 
@@ -64,7 +83,9 @@ export async function POST(req: Request) {
         mindMapId,
         parentNodeId: realParentId,
         label: aiNode.label,
+        subtitle: aiNode.subtitle ?? null,
         notes: aiNode.notes ?? null,
+        image_suggestion: aiNode.image_suggestion ?? null,
         position: { x: pos.x, y: pos.y },
         sortOrder: i + 1,
         setAsRoot: isRoot

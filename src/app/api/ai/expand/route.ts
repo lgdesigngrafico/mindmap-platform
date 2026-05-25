@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 
 const SYSTEM_PROMPT =
-  "Você é um especialista em mapas mentais. Dado um nó de mapa mental, gere 3-5 subtópicos relevantes. Responda APENAS com JSON válido no formato: {\"subtopics\": [{\"label\": \"Subtópico 1\", \"notes\": \"Instrução prática e acionável explicando o que fazer, como fazer e exemplos ou métricas relevantes. Escreva 50 a 150 palavras.\"}]}. Regras: (1) label: texto curto, 3-5 palavras. (2) notes: conteúdo PRÁTICO explicando O QUE FAZER e COMO FAZER com exemplos concretos.";
+  "Você é um especialista em criação de conteúdo visual e mapas mentais. Dado um nó de mapa mental, gere 3-5 subtópicos onde CADA UM representa um SLIDE ou CARD de conteúdo visual. Responda APENAS com JSON válido no formato: {\"subtopics\": [{\"label\": \"TÍTULO DO SLIDE\", \"subtitle\": \"Frase de apoio ou contexto\", \"notes\": \"Texto corpo completo do slide. Conteúdo PRÁTICO — O QUE FAZER, COMO FAZER, exemplos e métricas, 50-150 palavras.\", \"image_suggestion\": \"Descrição da imagem ideal para este card: ex. gráfico de crescimento com linha verde ascendente\"}]}. Regras: (1) label: título curto e impactante, 3-5 palavras. (2) subtitle: frase de apoio, 1 linha. (3) notes: conteúdo prático com exemplos concretos. (4) image_suggestion: descrição visual específica.";
 
 export async function POST(req: Request) {
   let nodeLabel: string;
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as { subtopics: { label: string; notes: string }[] };
+    const parsed = JSON.parse(jsonMatch[0]) as { subtopics: { label: string; subtitle?: string; notes: string; image_suggestion?: string }[] };
 
     if (!Array.isArray(parsed.subtopics) || parsed.subtopics.length === 0) {
       return Response.json(

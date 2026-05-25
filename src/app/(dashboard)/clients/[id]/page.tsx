@@ -5,6 +5,7 @@ import { getClientById, getClientStats } from "@/lib/data/clients";
 import { getTasks } from "@/lib/data/tasks";
 import { getMindMapsForUser } from "@/lib/data/mind-maps";
 import { ClientDashboard } from "@/components/clients/client-dashboard";
+import { ClientCalendar } from "@/components/clients/client-calendar";
 
 type Props = { params: { id: string } };
 
@@ -27,6 +28,10 @@ export default async function ClientDetailPage({ params }: Props) {
 
   const statusLabel: Record<string, string> = { todo: "A Fazer", in_progress: "Em Andamento", done: "Concluído" };
   const priorityLabel: Record<string, string> = { low: "Baixa", medium: "Média", high: "Alta" };
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
   return (
     <div className="page">
@@ -73,6 +78,16 @@ export default async function ClientDetailPage({ params }: Props) {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="card" style={{ marginBottom: "1.5rem" }}>
+        <h2 className="card__section-title">Calendário de Tarefas</h2>
+        <ClientCalendar
+          tasks={tasks}
+          clientId={client.id}
+          initialYear={currentYear}
+          initialMonth={currentMonth}
+        />
       </section>
 
       <section className="card">

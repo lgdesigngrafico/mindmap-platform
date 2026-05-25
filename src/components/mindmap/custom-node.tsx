@@ -83,6 +83,10 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
         </button>
       )}
 
+      {data.subtitle && (
+        <p className="mindmap-node__subtitle">{data.subtitle}</p>
+      )}
+
       {notesPreview && (
         <p className="mindmap-node__notes-preview">
           {notesPreview}
@@ -166,10 +170,14 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
         <NodeDetailModal
           nodeId={id}
           label={data.label}
+          subtitle={data.subtitle}
           notes={data.notes}
+          image_suggestion={data.image_suggestion}
           onClose={() => setIsDetailOpen(false)}
-          onSave={async (nodeId, notes) => {
-            if (data.onSaveNotes) {
+          onSave={async (nodeId, subtitle, notes, image_suggestion) => {
+            if (data.onSaveNodeDetail) {
+              await data.onSaveNodeDetail(nodeId, subtitle, notes, image_suggestion);
+            } else if (data.onSaveNotes) {
               await data.onSaveNotes(nodeId, notes);
             }
           }}
