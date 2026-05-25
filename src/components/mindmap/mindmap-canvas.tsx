@@ -26,6 +26,8 @@ import { deleteMedia as deleteMediaAction } from "@/lib/actions/media";
 import { uploadMedia } from "@/lib/storage/media";
 import { CustomNode } from "@/components/mindmap/custom-node";
 import { NodeToolbar } from "@/components/mindmap/node-toolbar";
+import { AiGenerateModal } from "@/components/mindmap/ai-generate-modal";
+import { computeTreeLayout, computeChildPositions } from "@/lib/mindmap/auto-layout";
 import type {
   MediaRecord,
   MindMapEdge,
@@ -100,6 +102,12 @@ export function MindMapCanvas({
   const [isPending, startTransition] = useTransition();
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  // ── AI state ──────────────────────────────────────────────────────────────
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [currentRootNodeId, setCurrentRootNodeId] = useState<string | null>(rootNodeId);
+
   // ── Media state ──────────────────────────────────────────────────────────
   const [mediaByNodeId, setMediaByNodeId] = useState<Record<string, MediaRecord[]>>(
     () => initialMediaByNodeId
@@ -168,6 +176,202 @@ export function MindMapCanvas({
     };
   }, []);
 
+  // ── AI: generate full map ─────────────────────────────────────────────────
+  const handleGenerateMap = useCallback(
+    async (prompt: string) => {
+      setAiError(null);
+      setIsAiGenerating(true);
+
+      try {
+        // Ask user whether to replace or add
+        let replaceExisting = false;
+        if (nodes.length > 0) {
+          replaceExisting = window.confirm(
+            "O mapa já contém nós.\n\nClique em OK para substituir o conteúdo existente.\nClique em Cancelar para adicionar ao mapa atual."
+          );
+        }
+
+        const res = await fetch("/api/ai/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          setAiError(data.error ?? "Falha ao gerar mapa.");
+          return;
+        }
+
+        const data = (await res.json()) as {
+          nodes: { id: string; label: string; parentId: string | null }[];
+        };
+
+        if (!Array.isArray(data.nodes) || data.nodes.length === 0) {
+          setAiError("A IA retornou uma estrutura inválida.");
+          return;
+        }
+
+        // Delete existing nodes if replacing
+        if (replaceExisting && nodes.length > 0) {
+          const nodesToDelete = [...nodes];
+          await Promise.all(nodesToDelete.map((n) => deleteNodeAction({ id: n.id })));
+          setNodes([]);
+          setEdges([]);
+        }
+
+        // Compute layout positions
+        const positioned = computeTreeLayout(data.nodes);
+
+        // Topological sort: roots first, then children
+        const aiNodes = data.nodes;
+        const sorted: typeof aiNodes = [];
+        const remaining = [...aiNodes];
+
+        // Add roots first
+        const roots = remaining.filter((n) => n.parentId === null);
+        sorted.push(...roots);
+        for (const r of roots) {
+          remaining.splice(remaining.indexOf(r), 1);
+        }
+
+        // BFS to add children in order
+        let safetyLimit = aiNodes.length * 2;
+        while (remaining.length > 0 && safetyLimit-- > 0) {
+          const processable = remaining.filter((n) =>
+            sorted.some((s) => s.id === n.parentId)
+          );
+          if (processable.length === 0) break;
+          for (const node of processable) {
+            sorted.push(node);
+            remaining.splice(remaining.indexOf(node), 1);
+          }
+        }
+        // Append any orphaned nodes at the end
+        sorted.push(...remaining);
+
+        // Create nodes in DB
+        const idMap = new Map<string, string>(); // aiId -> realDbId
+        const createdNodes: MindMapNodeRecord[] = [];
+        let newRootId: string | null = currentRootNodeId;
+        let firstRoot = true;
+
+        for (let i = 0; i < sorted.length; i++) {
+          const aiNode = sorted[i];
+          const pos = positioned.find((p) => p.id === aiNode.id) ?? { x: i * 250, y: 0 };
+          const realParentId = aiNode.parentId ? (idMap.get(aiNode.parentId) ?? null) : null;
+          const isRoot = aiNode.parentId === null && firstRoot;
+          if (isRoot) firstRoot = false;
+
+          const created = await createNodeAction({
+            mindMapId,
+            parentNodeId: realParentId,
+            label: aiNode.label,
+            position: { x: pos.x, y: pos.y },
+            sortOrder: i + 1,
+            setAsRoot: isRoot
+          });
+
+          idMap.set(aiNode.id, created.id);
+          createdNodes.push(created);
+          if (isRoot) newRootId = created.id;
+        }
+
+        // Create edges in DB
+        const createdEdges: MindMapEdgeRecord[] = [];
+        for (const aiNode of sorted) {
+          if (aiNode.parentId === null) continue;
+          const sourceId = idMap.get(aiNode.parentId);
+          const targetId = idMap.get(aiNode.id);
+          if (!sourceId || !targetId) continue;
+
+          const edge = await createEdgeAction({
+            mindMapId,
+            sourceNodeId: sourceId,
+            targetNodeId: targetId
+          });
+          createdEdges.push(edge);
+        }
+
+        // Update canvas state
+        setCurrentRootNodeId(newRootId);
+        setNodes(
+          createdNodes.map((n) => mapNodeRecordToFlowNode(n, newRootId, handleChangeLabel))
+        );
+        setEdges(createdEdges.map(mapEdgeRecordToFlowEdge));
+        setIsAiModalOpen(false);
+      } catch (err) {
+        setAiError(err instanceof Error ? err.message : "Erro inesperado ao gerar mapa.");
+      } finally {
+        setIsAiGenerating(false);
+      }
+    },
+    [nodes, mindMapId, currentRootNodeId, handleChangeLabel]
+  );
+
+  // ── AI: expand node ───────────────────────────────────────────────────────
+  const handleExpandNode = useCallback(
+    async (nodeId: string, label: string): Promise<void> => {
+      const parentNode = nodes.find((n) => n.id === nodeId);
+      if (!parentNode) return;
+
+      const mapContext = nodes.map((n) => n.data.label).join(", ");
+
+      const res = await fetch("/api/ai/expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeLabel: label, mapContext })
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        window.alert(data.error ?? "Falha ao expandir nó.");
+        return;
+      }
+
+      const data = (await res.json()) as { subtopics: string[] };
+      if (!Array.isArray(data.subtopics) || data.subtopics.length === 0) return;
+
+      const positions = computeChildPositions(
+        parentNode.position.x,
+        parentNode.position.y,
+        data.subtopics.length
+      );
+
+      const createdNodes: MindMapNodeRecord[] = [];
+      for (let i = 0; i < data.subtopics.length; i++) {
+        const created = await createNodeAction({
+          mindMapId,
+          parentNodeId: nodeId,
+          label: data.subtopics[i],
+          position: positions[i],
+          sortOrder: nodes.length + i + 1
+        });
+        createdNodes.push(created);
+      }
+
+      const createdEdges: MindMapEdgeRecord[] = [];
+      for (const child of createdNodes) {
+        const edge = await createEdgeAction({
+          mindMapId,
+          sourceNodeId: nodeId,
+          targetNodeId: child.id
+        });
+        createdEdges.push(edge);
+      }
+
+      setNodes((prev) => [
+        ...prev,
+        ...createdNodes.map((n) => mapNodeRecordToFlowNode(n, currentRootNodeId, handleChangeLabel))
+      ]);
+      setEdges((prev) => [
+        ...prev,
+        ...createdEdges.map(mapEdgeRecordToFlowEdge)
+      ]);
+    },
+    [nodes, mindMapId, currentRootNodeId, handleChangeLabel]
+  );
+
   // ── Merge media + callbacks into nodes for React Flow ───────────────────
   const nodesForFlow = useMemo<MindMapNode[]>(
     () =>
@@ -178,10 +382,11 @@ export function MindMapCanvas({
           mindMapId,
           mediaItems: mediaByNodeId[node.id] ?? [],
           onAttachMedia: handleAttachMedia as MindMapNodeData["onAttachMedia"],
-          onDeleteMedia: handleDeleteMedia as MindMapNodeData["onDeleteMedia"]
+          onDeleteMedia: handleDeleteMedia as MindMapNodeData["onDeleteMedia"],
+          onExpandNode: handleExpandNode as MindMapNodeData["onExpandNode"]
         }
       })),
-    [nodes, mediaByNodeId, mindMapId, handleAttachMedia, handleDeleteMedia]
+    [nodes, mediaByNodeId, mindMapId, handleAttachMedia, handleDeleteMedia, handleExpandNode]
   );
 
   const nextNodeSortOrder = useMemo(() => nodes.length + 1, [nodes.length]);
@@ -259,17 +464,17 @@ export function MindMapCanvas({
     startTransition(async () => {
       const createdNode = await createNodeAction({
         mindMapId,
-        parentNodeId: selectedNode?.id ?? rootNodeId ?? null,
+        parentNodeId: selectedNode?.id ?? currentRootNodeId ?? null,
         position,
         sortOrder: nextNodeSortOrder
       });
 
       setNodes((currentNodes) => [
         ...currentNodes,
-        mapNodeRecordToFlowNode(createdNode, rootNodeId, handleChangeLabel)
+        mapNodeRecordToFlowNode(createdNode, currentRootNodeId, handleChangeLabel)
       ]);
     });
-  }, [handleChangeLabel, mindMapId, nextNodeSortOrder, nodes, rootNodeId, selectedNodeIds]);
+  }, [handleChangeLabel, mindMapId, nextNodeSortOrder, nodes, currentRootNodeId, selectedNodeIds]);
 
   const deleteSelection = useCallback(() => {
     const selectedNodeId = selectedNodeIds[0];
@@ -332,12 +537,17 @@ export function MindMapCanvas({
           >
             {mapTitle}
           </div>
-          {isPending ? <p className="mindmap-editor__status">Salvando alterações…</p> : null}
+          {isPending || isAiGenerating ? (
+            <p className="mindmap-editor__status">
+              {isAiGenerating ? "Gerando mapa..." : "Salvando alterações…"}
+            </p>
+          ) : null}
         </div>
         <NodeToolbar
           onCreateNode={createNode}
           onDeleteSelection={deleteSelection}
           isDeletingDisabled={!selectedNodeIds.length && !selectedEdgeIds.length}
+          onGenerateWithAI={() => { setAiError(null); setIsAiModalOpen(true); }}
         />
       </div>
       <div className="mindmap-editor__canvas">
@@ -368,6 +578,15 @@ export function MindMapCanvas({
           <Controls position="bottom-left" />
         </ReactFlow>
       </div>
+
+      {isAiModalOpen && (
+        <AiGenerateModal
+          onClose={() => setIsAiModalOpen(false)}
+          onGenerate={handleGenerateMap}
+          isGenerating={isAiGenerating}
+          error={aiError}
+        />
+      )}
     </section>
   );
 }

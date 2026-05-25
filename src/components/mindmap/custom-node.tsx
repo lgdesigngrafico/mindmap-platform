@@ -14,6 +14,7 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<MediaRecord | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isExpanding, setIsExpanding] = useState(false);
 
   const mediaItems = data.mediaItems ?? [];
 
@@ -36,6 +37,17 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
 
   function handleDeleteMedia(media: MediaRecord) {
     return data.onDeleteMedia!(media);
+  }
+
+  async function handleExpandNode(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (isExpanding || !data.onExpandNode) return;
+    setIsExpanding(true);
+    try {
+      await data.onExpandNode(id, data.label);
+    } finally {
+      setIsExpanding(false);
+    }
   }
 
   return (
@@ -82,8 +94,19 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
         </div>
       )}
 
-      {data.onAttachMedia && (
-        <div className="mindmap-node__media-bar" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="mindmap-node__actions" onMouseDown={(e) => e.stopPropagation()}>
+        {data.onExpandNode && (
+          <button
+            type="button"
+            className={`mindmap-node__expand-btn${isExpanding ? " mindmap-node__expand-btn--loading" : ""}`}
+            onClick={handleExpandNode}
+            disabled={isExpanding}
+            title="Expandir com IA"
+          >
+            {isExpanding ? <span className="ai-spinner ai-spinner--small" /> : "✨"}
+          </button>
+        )}
+        {data.onAttachMedia && (
           <button
             type="button"
             className="mindmap-node__media-btn"
@@ -92,8 +115,8 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
           >
             📎
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <Handle type="source" position={Position.Right} className="mindmap-node__handle" />
 
