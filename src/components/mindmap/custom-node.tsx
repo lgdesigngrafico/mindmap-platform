@@ -19,6 +19,7 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const mediaItems = data.mediaItems ?? [];
+  const hasImages = mediaItems.some((m) => m.media_type === "image");
 
   useEffect(() => {
     setMounted(true);
@@ -56,7 +57,7 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
 
   return (
     <div
-      className={`mindmap-node${selected ? " mindmap-node--selected" : ""}${data.isRoot ? " mindmap-node--root" : ""}`}
+      className={`mindmap-node${selected ? " mindmap-node--selected" : ""}${data.isRoot ? " mindmap-node--root" : ""}${hasImages ? " mindmap-node--has-media" : ""}`}
     >
       <Handle type="target" position={Position.Left} className="mindmap-node__handle" />
 
@@ -208,20 +209,31 @@ function MediaThumb({ media, onClick }: MediaThumbProps) {
     return () => { cancelled = true; };
   }, [media.storage_path]);
 
+  if (media.media_type === "image") {
+    return (
+      <button
+        type="button"
+        className="mindmap-node__media-img-btn"
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        title="Ver imagem"
+      >
+        {url ? (
+          <img src={url} alt="" className="mindmap-node__media-img" />
+        ) : (
+          <span className="mindmap-node__media-img-placeholder">🖼</span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
       className="mindmap-node__media-thumb"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={media.media_type === "image" ? "Ver imagem" : "Ver vídeo"}
+      title="Ver vídeo"
     >
-      {media.media_type === "image" && url ? (
-        <img src={url} alt="" className="mindmap-node__media-thumb-img" />
-      ) : media.media_type === "image" ? (
-        <span className="mindmap-node__media-thumb-icon">🖼</span>
-      ) : (
-        <span className="mindmap-node__media-thumb-icon mindmap-node__media-thumb-icon--video">▶</span>
-      )}
+      <span className="mindmap-node__media-thumb-icon mindmap-node__media-thumb-icon--video">▶</span>
     </button>
   );
 }

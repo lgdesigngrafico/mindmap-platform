@@ -483,6 +483,10 @@ body > div:first-child {
   border-color: rgba(34, 197, 94, 0.5);
 }
 
+.mindmap-node--has-media {
+  min-width: 240px;
+}
+
 .mindmap-node__label {
   width: 100%;
   padding: 0;
@@ -559,8 +563,8 @@ body > div:first-child {
 
 .mindmap-node__media-strip {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 6px;
 }
 
@@ -598,6 +602,44 @@ body > div:first-child {
 
 .mindmap-node__media-thumb-icon--video {
   color: var(--primary);
+}
+
+/* ── Media: node inline image (medium size) ──────────────────────────────── */
+
+.mindmap-node__media-img-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mindmap-node__media-img-btn:hover {
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 4px 14px rgba(2, 8, 23, 0.4);
+}
+
+.mindmap-node__media-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 7px;
+  object-fit: contain;
+  box-shadow: 0 4px 12px rgba(2, 8, 23, 0.35);
+}
+
+.mindmap-node__media-img-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 80px;
+  font-size: 1.5rem;
+  color: var(--muted);
 }
 
 .mindmap-node__media-bar {
