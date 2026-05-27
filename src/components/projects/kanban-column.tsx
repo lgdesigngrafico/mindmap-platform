@@ -68,7 +68,7 @@ export function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
-    <div className={`kanban-col${isOver ? " kanban-col--over" : ""}`}>
+    <div className={`kanban-col kanban-col--${id}${isOver ? " kanban-col--over" : ""}`}>
       <div className="kanban-col__header">
         <h3 className="kanban-col__title">{title}</h3>
         <span className="kanban-col__count">{tasks.length}</span>
