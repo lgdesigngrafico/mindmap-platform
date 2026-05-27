@@ -1,9 +1,13 @@
 import Groq from "groq-sdk";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getBrandKitByClientId, buildBrandContext } from "@/lib/data/brand-kit";
+
+export const runtime = "nodejs";
 
 type RateLimitEntry = { count: number; resetAt: number };
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-const SYSTEM_PROMPT =
+const BASE_SYSTEM_PROMPT =
   "Você é um Social Media Strategist especializado em criação de carrosséis, posts e conteúdo para redes sociais. " +
   "Dado o tema do usuário, gere uma estrutura hierárquica FIXA para conteúdo de redes sociais. " +
   "SEMPRE siga esta estrutura EXATA: 1 nó raiz (tema central) + grupos de slides onde CADA SLIDE tem EXATAMENTE 4 nós filhos. " +
@@ -43,9 +47,11 @@ export async function POST(req: Request) {
   }
 
   let prompt: string;
+  let clientId: string | undefined;
   try {
     const body = await req.json();
     prompt = body.prompt as string;
+    clientId = body.clientId as string | undefined;
   } catch {
     return Response.json({ error: "Requisição inválida." }, { status: 400 });
   }
@@ -59,13 +65,35 @@ export async function POST(req: Request) {
     return Response.json({ error: "GROQ_API_KEY não configurada." }, { status: 500 });
   }
 
+  // Build system prompt, optionally injecting brand kit context
+  let systemPrompt = BASE_SYSTEM_PROMPT;
+  if (clientId) {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        const brandKit = await getBrandKitByClientId(clientId);
+        if (brandKit && brandKit.user_id === user.id) {
+          const brandContext = await buildBrandContext(brandKit);
+          if (brandContext) {
+            systemPrompt =
+              systemPrompt +
+              "\n\nINFORMAÇÕES DA MARCA DO CLIENTE (use para personalizar o conteúdo):\n" +
+              brandContext;
+          }
+        }
+      }
+    } catch {
+      // ignore brand kit errors, continue without it
+    }
+  }
+
   try {
     const groq = new Groq({ apiKey });
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: `Tema: ${prompt.trim()}` }
       ],
       temperature: 0.7,

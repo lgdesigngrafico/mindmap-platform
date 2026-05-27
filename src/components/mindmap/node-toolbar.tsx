@@ -6,6 +6,8 @@ type NodeToolbarProps = {
   isDeletingDisabled: boolean;
   onGenerateWithAI: () => void;
   onExportToTasks?: () => void;
+  onCopyCarousel?: () => void;
+  carouselCopied?: boolean;
 };
 
 export function NodeToolbar({
@@ -13,7 +15,9 @@ export function NodeToolbar({
   onDeleteSelection,
   isDeletingDisabled,
   onGenerateWithAI,
-  onExportToTasks
+  onExportToTasks,
+  onCopyCarousel,
+  carouselCopied
 }: NodeToolbarProps) {
   return (
     <div className="mindmap-toolbar">
@@ -34,6 +38,16 @@ export function NodeToolbar({
       {onExportToTasks && (
         <button type="button" className="button button--secondary" onClick={onExportToTasks}>
           Enviar para Gestão
+        </button>
+      )}
+      {onCopyCarousel && (
+        <button
+          type="button"
+          className="button button--secondary"
+          onClick={onCopyCarousel}
+          title="Copiar todos os slides formatados para Instagram"
+        >
+          {carouselCopied ? "✅ Copiado!" : "📋 Copiar carrossel"}
         </button>
       )}
       <div className="mindmap-toolbar__hint">

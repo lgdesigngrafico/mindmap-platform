@@ -8,6 +8,7 @@ import { MediaUpload } from "@/components/media/media-upload";
 import { MediaPreviewModal } from "@/components/media/media-preview-modal";
 import { NodeDetailModal } from "@/components/mindmap/node-detail-modal";
 import { getSignedUrl } from "@/lib/storage/media";
+import { generateImageFromPrompt } from "@/lib/ai/generate-image";
 
 function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -17,6 +18,7 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const [mounted, setMounted] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isGeneratingNodeImage, setIsGeneratingNodeImage] = useState(false);
 
   const mediaItems = data.mediaItems ?? [];
   const hasImages = mediaItems.some((m) => m.media_type === "image");
@@ -50,6 +52,21 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
       await data.onExpandNode(id, data.label);
     } finally {
       setIsExpanding(false);
+    }
+  }
+
+  async function handleGenerateNodeImage(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (isGeneratingNodeImage || !data.image_suggestion || !data.onAttachMedia) return;
+    setIsGeneratingNodeImage(true);
+    try {
+      const blob = await generateImageFromPrompt(data.image_suggestion);
+      const file = new File([blob], "ai-generated.webp", { type: "image/webp" });
+      await handleAttachMedia(file, () => {});
+    } catch {
+      // silently ignore individual node generation errors
+    } finally {
+      setIsGeneratingNodeImage(false);
     }
   }
 
@@ -129,6 +146,17 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
             {isExpanding ? <span className="ai-spinner ai-spinner--small" /> : "✨"}
           </button>
         )}
+        {data.image_suggestion && data.onAttachMedia && (
+          <button
+            type="button"
+            className={`mindmap-node__expand-btn${isGeneratingNodeImage ? " mindmap-node__expand-btn--loading" : ""}`}
+            onClick={handleGenerateNodeImage}
+            disabled={isGeneratingNodeImage}
+            title="Gerar imagem com IA para este nó"
+          >
+            {isGeneratingNodeImage ? <span className="ai-spinner ai-spinner--small" /> : "🎨"}
+          </button>
+        )}
         {data.onAttachMedia && (
           <button
             type="button"
@@ -174,6 +202,8 @@ function CustomNodeComponent({ id, data, selected }: MindMapNodeProps) {
           subtitle={data.subtitle}
           notes={data.notes}
           image_suggestion={data.image_suggestion}
+          mindMapId={data.mindMapId}
+          onAttachMedia={data.onAttachMedia ? handleAttachMedia : undefined}
           onClose={() => setIsDetailOpen(false)}
           onSave={async (nodeId, subtitle, notes, image_suggestion) => {
             if (data.onSaveNodeDetail) {

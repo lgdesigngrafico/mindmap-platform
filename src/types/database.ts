@@ -327,6 +327,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      brand_kits: {
+        Row: {
+          id: string;
+          client_id: string;
+          user_id: string;
+          primary_color: string;
+          secondary_color: string;
+          accent_color: string;
+          brand_voice: string | null;
+          target_audience: string | null;
+          visual_references: string | null;
+          hashtags: string | null;
+          dos: string | null;
+          donts: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          user_id: string;
+          primary_color?: string;
+          secondary_color?: string;
+          accent_color?: string;
+          brand_voice?: string | null;
+          target_audience?: string | null;
+          visual_references?: string | null;
+          hashtags?: string | null;
+          dos?: string | null;
+          donts?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          user_id?: string;
+          primary_color?: string;
+          secondary_color?: string;
+          accent_color?: string;
+          brand_voice?: string | null;
+          target_audience?: string | null;
+          visual_references?: string | null;
+          hashtags?: string | null;
+          dos?: string | null;
+          donts?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

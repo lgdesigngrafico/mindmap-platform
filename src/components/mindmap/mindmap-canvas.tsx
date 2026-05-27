@@ -28,6 +28,8 @@ import { CustomNode } from "@/components/mindmap/custom-node";
 import { NodeToolbar } from "@/components/mindmap/node-toolbar";
 import { AiGenerateModal } from "@/components/mindmap/ai-generate-modal";
 import { computeTreeLayout, computeChildPositions } from "@/lib/mindmap/auto-layout";
+import { generateImageFromPrompt } from "@/lib/ai/generate-image";
+import { formatForInstagram } from "@/lib/formatters/social-media";
 import type {
   MediaRecord,
   MindMapEdge,
@@ -125,6 +127,9 @@ export function MindMapCanvas({
   const [aiError, setAiError] = useState<string | null>(null);
   const [currentRootNodeId, setCurrentRootNodeId] = useState<string | null>(rootNodeId);
 
+  // ── Carousel copy state ──────────────────────────────────────────────────
+  const [carouselCopied, setCarouselCopied] = useState(false);
+
   // ── Media state ──────────────────────────────────────────────────────────
   const [mediaByNodeId, setMediaByNodeId] = useState<Record<string, MediaRecord[]>>(
     () => initialMediaByNodeId
@@ -220,7 +225,7 @@ export function MindMapCanvas({
 
   // ── AI: generate full map ─────────────────────────────────────────────────
   const handleGenerateMap = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, generateImages = false) => {
       setAiError(null);
       setIsAiGenerating(true);
 
@@ -366,6 +371,27 @@ export function MindMapCanvas({
           // ignore client detection errors
         }
 
+        // Feature 1: Batch generate images for CRIATIVO REFERÊNCIA nodes
+        if (generateImages) {
+          const nodesWithImages = createdNodes.filter(
+            (n) =>
+              n.image_suggestion ||
+              (n.label.toLowerCase().includes("criativo") && n.notes)
+          );
+
+          for (const node of nodesWithImages) {
+            try {
+              const imgPrompt = node.image_suggestion || node.notes || "";
+              if (!imgPrompt) continue;
+              const blob = await generateImageFromPrompt(imgPrompt);
+              const file = new File([blob], "ai-generated.webp", { type: "image/webp" });
+              await handleAttachMedia(node.id, mindMapId, file, () => {});
+            } catch {
+              // ignore individual generation failures
+            }
+          }
+        }
+
         setIsAiModalOpen(false);
       } catch (err) {
         setAiError(err instanceof Error ? err.message : "Erro inesperado ao gerar mapa.");
@@ -373,7 +399,7 @@ export function MindMapCanvas({
         setIsAiGenerating(false);
       }
     },
-    [nodes, mindMapId, currentRootNodeId, handleChangeLabel]
+    [nodes, mindMapId, currentRootNodeId, handleChangeLabel, handleAttachMedia]
   );
 
   // ── AI: expand node ───────────────────────────────────────────────────────
@@ -467,6 +493,72 @@ export function MindMapCanvas({
     },
     [nodes, mindMapId, currentRootNodeId, handleChangeLabel]
   );
+
+  // ── Feature 3: Copy full carousel to Instagram ───────────────────────────
+  const handleCopyCarousel = useCallback(() => {
+    // Build source → children adjacency from edges
+    const childrenMap = new Map<string, string[]>();
+    for (const edge of edges) {
+      const children = childrenMap.get(edge.source) ?? [];
+      children.push(edge.target);
+      childrenMap.set(edge.source, children);
+    }
+
+    // Find root node
+    const rootNode = nodes.find((n) => n.id === currentRootNodeId || n.data.isRoot);
+    if (!rootNode) {
+      window.alert("Nenhum nó raiz encontrado.");
+      return;
+    }
+
+    // Get slide children of root
+    const slideIds = childrenMap.get(rootNode.id) ?? [];
+    const slideNodes = slideIds
+      .map((sid) => nodes.find((n) => n.id === sid))
+      .filter(Boolean) as MindMapNode[];
+
+    const slides: string[] = [];
+
+    for (const slide of slideNodes) {
+      const childIds = childrenMap.get(slide.id) ?? [];
+      const childNodes = childIds
+        .map((cid) => nodes.find((n) => n.id === cid))
+        .filter(Boolean) as MindMapNode[];
+
+      const tituloNode = childNodes.find((n) =>
+        n.data.label.toUpperCase().startsWith("TÍTULO")
+      );
+      const subtituloNode = childNodes.find((n) =>
+        n.data.label.toUpperCase().startsWith("SUBTÍTULO")
+      );
+      const textoNode = childNodes.find((n) =>
+        n.data.label.toUpperCase().startsWith("TEXTO")
+      );
+
+      const title =
+        tituloNode?.data.notes ||
+        tituloNode?.data.label.replace(/^TÍTULO:\s*/i, "") ||
+        slide.data.label;
+      const subtitle =
+        subtituloNode?.data.notes ||
+        subtituloNode?.data.label.replace(/^SUBTÍTULO:\s*/i, "") ||
+        "";
+      const body = textoNode?.data.notes || "";
+
+      slides.push(formatForInstagram(title, subtitle, body));
+    }
+
+    if (slides.length === 0) {
+      window.alert("Nenhum slide encontrado para copiar. Gere um mapa com IA primeiro.");
+      return;
+    }
+
+    const fullText = slides.join("\n\n---\n\n");
+    navigator.clipboard.writeText(fullText).then(() => {
+      setCarouselCopied(true);
+      setTimeout(() => setCarouselCopied(false), 2000);
+    });
+  }, [edges, nodes, currentRootNodeId]);
 
   // ── Merge media + callbacks into nodes for React Flow ───────────────────
   const nodesForFlow = useMemo<MindMapNode[]>(
@@ -647,6 +739,8 @@ export function MindMapCanvas({
           isDeletingDisabled={!selectedNodeIds.length && !selectedEdgeIds.length}
           onGenerateWithAI={() => { setAiError(null); setIsAiModalOpen(true); }}
           onExportToTasks={() => exportMapToTasks(mindMapId)}
+          onCopyCarousel={handleCopyCarousel}
+          carouselCopied={carouselCopied}
         />
       </div>
       <div className="mindmap-editor__canvas">

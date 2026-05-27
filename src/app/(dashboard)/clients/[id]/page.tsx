@@ -4,8 +4,10 @@ import { requireUser } from "@/lib/auth/session";
 import { getClientById, getClientStats } from "@/lib/data/clients";
 import { getTasks } from "@/lib/data/tasks";
 import { getMindMapsForUser } from "@/lib/data/mind-maps";
+import { getBrandKit } from "@/lib/data/brand-kit";
 import { ClientDashboard } from "@/components/clients/client-dashboard";
 import { ClientCalendar } from "@/components/clients/client-calendar";
+import { BrandKitSection } from "@/components/clients/brand-kit-section";
 
 type Props = { params: { id: string } };
 
@@ -18,9 +20,10 @@ export default async function ClientDetailPage({ params }: Props) {
 
   if (!client) notFound();
 
-  const [tasks, allMaps] = await Promise.all([
+  const [tasks, allMaps, brandKit] = await Promise.all([
     getTasks(user.id, params.id),
-    getMindMapsForUser(user.id)
+    getMindMapsForUser(user.id),
+    getBrandKit(params.id, user.id)
   ]);
 
   const clientMaps = (allMaps as Array<{ id: string; title: string; updated_at: string; client_id?: string | null }>)
@@ -62,6 +65,8 @@ export default async function ClientDetailPage({ params }: Props) {
           <p>{client.notes}</p>
         </section>
       )}
+
+      <BrandKitSection clientId={client.id} initialData={brandKit} />
 
       <section className="card" style={{ marginBottom: "1.5rem" }}>
         <h2 className="card__section-title">Mapas Mentais ({clientMaps.length})</h2>

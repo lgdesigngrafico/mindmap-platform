@@ -1,8 +1,10 @@
 import Groq from "groq-sdk";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getBrandKitByClientId, buildBrandContext } from "@/lib/data/brand-kit";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT =
+const BASE_SYSTEM_PROMPT =
   "Você é um Social Media Strategist especializado em criação de conteúdo para redes sociais, carrosséis, posts e campanhas digitais. " +
   "Pense sempre como um estrategista de conteúdo: foque em engajamento, persuasão, clareza e valor prático para o público. " +
   "Quando o usuário pedir ideias de conteúdo, estruture as respostas com a lógica de carrossel/slides: " +
@@ -12,7 +14,7 @@ const SYSTEM_PROMPT =
   "Quando fizer sentido, use listas e tópicos para facilitar a organização em mapas mentais.";
 
 export async function POST(req: Request) {
-  let body: { conversationId: string; messages: { role: string; content: string }[] };
+  let body: { conversationId: string; messages: { role: string; content: string }[]; clientId?: string };
 
   try {
     body = await req.json();
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Requisição inválida." }, { status: 400 });
   }
 
-  const { messages } = body;
+  const { messages, clientId } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: "Mensagens inválidas." }, { status: 400 });
   }
@@ -30,13 +32,35 @@ export async function POST(req: Request) {
     return Response.json({ error: "GROQ_API_KEY não configurada." }, { status: 500 });
   }
 
+  // Build system prompt, optionally injecting brand kit context
+  let systemPrompt = BASE_SYSTEM_PROMPT;
+  if (clientId) {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        const brandKit = await getBrandKitByClientId(clientId);
+        if (brandKit && brandKit.user_id === user.id) {
+          const brandContext = await buildBrandContext(brandKit);
+          if (brandContext) {
+            systemPrompt =
+              systemPrompt +
+              "\n\nINFORMAÇÕES DA MARCA DO CLIENTE (adapte o conteúdo de acordo):\n" +
+              brandContext;
+          }
+        }
+      }
+    } catch {
+      // ignore brand kit errors, continue without it
+    }
+  }
+
   try {
     const groq = new Groq({ apiKey });
 
     const stream = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
       ],
       temperature: 0.7,

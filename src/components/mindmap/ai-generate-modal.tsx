@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 
 type AiGenerateModalProps = {
   onClose: () => void;
-  onGenerate: (prompt: string) => Promise<void>;
+  onGenerate: (prompt: string, generateImages: boolean) => Promise<void>;
   isGenerating: boolean;
   error: string | null;
 };
@@ -21,6 +21,7 @@ const TEMPLATES = [
 
 export function AiGenerateModal({ onClose, onGenerate, isGenerating, error }: AiGenerateModalProps) {
   const [prompt, setPrompt] = useState("");
+  const [generateImages, setGenerateImages] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export function AiGenerateModal({ onClose, onGenerate, isGenerating, error }: Ai
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
-    await onGenerate(prompt.trim());
+    await onGenerate(prompt.trim(), generateImages);
   }
 
   if (!mounted) return null;
@@ -83,6 +84,30 @@ export function AiGenerateModal({ onClose, onGenerate, isGenerating, error }: Ai
             disabled={isGenerating}
             autoFocus
           />
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              cursor: isGenerating ? "not-allowed" : "pointer",
+              fontSize: "0.875rem",
+              color: "var(--color-text-muted, #9ca3af)",
+              margin: "0.5rem 0"
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={generateImages}
+              onChange={(e) => setGenerateImages(e.target.checked)}
+              disabled={isGenerating}
+              style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#7c3aed" }}
+            />
+            <span>
+              🎨 Gerar imagens para todos os slides (Pollinations.ai — pode levar alguns minutos)
+            </span>
+          </label>
+
           {error && <p className="message message--error">{error}</p>}
           <button
             type="submit"
@@ -92,7 +117,7 @@ export function AiGenerateModal({ onClose, onGenerate, isGenerating, error }: Ai
             {isGenerating ? (
               <>
                 <span className="ai-spinner" />
-                Gerando mapa...
+                {generateImages ? "Gerando mapa e imagens..." : "Gerando mapa..."}
               </>
             ) : (
               <>✨ Gerar mapa</>
