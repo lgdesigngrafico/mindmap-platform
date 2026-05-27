@@ -1,18 +1,16 @@
 import Groq from "groq-sdk";
 
 const SYSTEM_PROMPT =
-  "Você é um Social Media Strategist especializado em criação de carrosséis e posts para redes sociais. " +
-  "Dado um nó de mapa mental, gere 3 a 5 slides de conteúdo, cada um seguindo a estrutura FIXA de 4 elementos. " +
-  "Responda APENAS com JSON válido neste formato exato: " +
+  "Você é um Social Media Strategist Sênior especializado em criação de carrosséis e conteúdo para redes sociais. " +
+  "Dado um nó de mapa mental, gere variações ou sub-slides — sempre em estrutura PLANA (filhos diretos, sem sub-nós). " +
+  "REGRA ABSOLUTA: máximo 2 níveis total. Os novos nós são SEMPRE filhos diretos do nó expandido (parentId: null na resposta). " +
+  "Gere 3 a 5 variações/sub-slides, cada um autossuficiente com todos os campos preenchidos. " +
+  "Responda APENAS com JSON válido neste formato EXATO: " +
   "{\"nodes\": [" +
-  "{\"id\": \"1\", \"label\": \"Slide 1\", \"parentId\": null, \"notes\": \"\"}," +
-  "{\"id\": \"2\", \"label\": \"TÍTULO: [headline impactante]\", \"parentId\": \"1\", \"notes\": \"[headline completo]\"}," +
-  "{\"id\": \"3\", \"label\": \"SUBTÍTULO: [frase de apoio]\", \"parentId\": \"1\", \"notes\": \"[frase de apoio ou contexto]\"}," +
-  "{\"id\": \"4\", \"label\": \"TEXTO CORPO\", \"parentId\": \"1\", \"notes\": \"[copy completa do slide, 50-150 palavras, conteúdo prático]\"}," +
-  "{\"id\": \"5\", \"label\": \"CRIATIVO REFERÊNCIA\", \"parentId\": \"1\", \"notes\": \"[descrição detalhada da imagem ou vídeo ideal]\"}," +
-  "{\"id\": \"6\", \"label\": \"Slide 2\", \"parentId\": null, \"notes\": \"\"}," +
-  "... continuar para todos os slides ]}. " +
-  "REGRAS: (1) parentId null = slide pai direto do nó expandido. (2) Cada slide tem EXATAMENTE 4 filhos: TÍTULO, SUBTÍTULO, TEXTO CORPO, CRIATIVO REFERÊNCIA. (3) NUNCA omita nenhum dos 4 elementos.";
+  "{\"id\": \"1\", \"label\": \"Slide 1: [título max 5 palavras]\", \"parentId\": null, \"subtitle\": \"[conceito central]\", \"notes\": \"[copy completa pronta pra postar: emojis, quebras de linha, linguagem de rede social]\", \"image_suggestion\": \"[descrição do criativo visual ideal]\"}," +
+  "{\"id\": \"2\", \"label\": \"Slide 2: [título max 5 palavras]\", \"parentId\": null, \"subtitle\": \"...\", \"notes\": \"...\", \"image_suggestion\": \"...\"}," +
+  "... mais slides ]}. " +
+  "REGRAS: (1) parentId SEMPRE null — os filhos serão vinculados ao nó expandido pelo sistema. (2) Label curto (máx 5 palavras). (3) Notes com copy completa, emojis e linguagem de rede social. (4) NUNCA crie hierarquia profunda — apenas 1 nível de filhos.";
 
 export async function POST(req: Request) {
   let nodeLabel: string;
@@ -62,7 +60,7 @@ export async function POST(req: Request) {
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      nodes?: { id: string; label: string; parentId: string | null; notes?: string }[];
+      nodes?: { id: string; label: string; parentId: string | null; subtitle?: string; notes?: string; image_suggestion?: string }[];
       subtopics?: { label: string; notes?: string }[];
     };
 
